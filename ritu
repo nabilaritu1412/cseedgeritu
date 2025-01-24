@@ -1,0 +1,115 @@
+# AI-Driven Nanomaterial Synthesis and Property Prediction
+
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Dense
+import matplotlib.pyplot as plt
+
+# Step 1: Generate Random Dataset
+def generate_dataset(num_samples=1000):
+    np.random.seed(42)
+
+    # Synthesis parameters (features)
+    temperature = np.random.uniform(200, 1000, num_samples)  # in Kelvin
+    pressure = np.random.uniform(1, 10, num_samples)         # in atm
+    time = np.random.uniform(1, 100, num_samples)            # in hours
+
+    # Material properties (target)
+    tensile_strength = 0.5 * temperature + 2.3 * pressure + 1.1 * time + np.random.normal(0, 50, num_samples)
+    conductivity = 0.3 * temperature - 1.2 * pressure + 0.8 * time + np.random.normal(0, 30, num_samples)
+
+    # Create DataFrame
+    data = pd.DataFrame({
+        'Temperature': temperature,
+        'Pressure': pressure,
+        'Time': time,
+        'Tensile Strength': tensile_strength,
+        'Conductivity': conductivity
+    })
+    return data
+
+# Generate dataset
+data = generate_dataset()
+data.head()
+
+# Step 2: Prepare Data for Neural Network
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+
+# Features and targets
+X = data[['Temperature', 'Pressure', 'Time']].values
+y = data[['Tensile Strength', 'Conductivity']].values
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Normalize the data
+scaler_X = MinMaxScaler()
+scaler_y = MinMaxScaler()
+X_train = scaler_X.fit_transform(X_train)
+X_test = scaler_X.transform(X_test)
+y_train = scaler_y.fit_transform(y_train)
+y_test = scaler_y.transform(y_test)
+
+# Step 3: Build the Neural Network Model
+model = Sequential([
+    Dense(64, activation='relu', input_shape=(3,)),
+    Dense(64, activation='relu'),
+    Dense(2)  # Output layer for two properties
+])
+
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+
+# Step 4: Train the Model
+history = model.fit(
+    X_train, y_train,
+    validation_split=0.2,
+    epochs=100,
+    batch_size=32,
+    verbose=1
+)
+
+# Step 5: Evaluate the Model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"Test Loss: {loss}, Test MAE: {mae}")
+
+# Step 6: Visualize Training History
+plt.figure(figsize=(12, 6))
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.title('Training and Validation Loss')
+plt.show()
+
+# Predict on Test Data
+predictions = model.predict(X_test)
+y_test_inverse = scaler_y.inverse_transform(y_test)
+predictions_inverse = scaler_y.inverse_transform(predictions)
+
+# Visualize Predictions vs Actual
+plt.figure(figsize=(12, 6))
+plt.scatter(range(len(y_test_inverse)), y_test_inverse[:, 0], label='Actual Tensile Strength', alpha=0.7)
+plt.scatter(range(len(predictions_inverse)), predictions_inverse[:, 0], label='Predicted Tensile Strength', alpha=0.7)
+plt.scatter(range(len(y_test_inverse)), y_test_inverse[:, 1], label='Actual Conductivity', alpha=0.7)
+plt.scatter(range(len(predictions_inverse)), predictions_inverse[:, 1], label='Predicted Conductivity', alpha=0.7)
+plt.xlabel('Sample Index')
+plt.ylabel('Values')
+plt.legend()
+plt.title('Predicted vs Actual Values for Material Properties')
+plt.show()
+
+# Visualize Actual vs Predicted as a Correlation Plot
+plt.figure(figsize=(12, 6))
+plt.scatter(y_test_inverse[:, 0], predictions_inverse[:, 0], label='Tensile Strength', alpha=0.7, color='blue')
+plt.scatter(y_test_inverse[:, 1], predictions_inverse[:, 1], label='Conductivity', alpha=0.7, color='green')
+plt.plot([min(y_test_inverse.flatten()), max(y_test_inverse.flatten())],
+         [min(y_test_inverse.flatten()), max(y_test_inverse.flatten())], 'r--', label='Ideal')
+plt.xlabel('Actual Values')
+plt.ylabel('Predicted Values')
+plt.legend()
+plt.title('Correlation Between Predicted and Actual Properties')
+plt.show()
